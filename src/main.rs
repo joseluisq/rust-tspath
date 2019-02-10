@@ -4,7 +4,7 @@ extern crate simple_logger;
 use log::warn;
 use std::env;
 
-fn get_argument(key: &str, args: &[String], defaults: &str) -> String {
+fn get_argument(args: &[String], key: &str, defaults: &str) -> String {
     let mut val = String::from("");
     let mut check = false;
 
@@ -31,8 +31,8 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
 
-    let source = get_argument("--source", &args, "./");
-    let config = get_argument("--config", &args, "tsconfig.json");
+    let source = get_argument(&args, "--source", "./");
+    let config = get_argument(&args, "--config", "tsconfig.json");
 
     warn!("SOURCE: {}", source);
     warn!("CONFIG: {}", config);
