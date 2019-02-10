@@ -1,0 +1,11 @@
+[package]
+name = "rust_tspath"
+version = "1.0.0"
+authors = ["José Quintana <https://git.io/joseluisq>"]
+
+[dependencies]
+log = "0.4.6"
+simple_logger = "1.0.1"
+
+[profile.release]
+lto = true

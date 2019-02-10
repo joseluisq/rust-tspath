@@ -1,0 +1,10 @@
+[env]
+E_ARGS = "--source tmp/ --config tsconfig.json"
+
+[tasks.watch]
+command = "cargo"
+args = ["watch", "-cx", "run -- ${E_ARGS}"]
+
+[tasks.run]
+command = "cargo"
+args = ["run", "run -- ${E_ARGS}"]

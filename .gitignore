@@ -1,0 +1,7 @@
+/target
+/bin
+/tmp
+**/*.bin
+**/*.log
+**/*.bk
+**/*.html
