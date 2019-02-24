@@ -1,15 +1,20 @@
 extern crate glob;
+#[macro_use]
+extern crate lazy_static;
 extern crate log;
+extern crate regex;
 extern crate simple_logger;
 
 use glob::glob;
 use log::{info, warn};
+use regex::Regex;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::PathBuf;
 
+/// Gets one process argument by key and it also supports a default value
 fn get_argument(args: &[String], key: &str, defaults: &str) -> String {
     let mut val = String::from("");
     let mut check = false;
@@ -32,6 +37,18 @@ fn get_argument(args: &[String], key: &str, defaults: &str) -> String {
     }
 }
 
+fn apply_replacement(line: &str, replacement: &str) {
+    info!("- APPLY REPLACED!");
+}
+
+fn process_line(line: &str) {
+    // TODO: Load compilerOptions.paths (tsconfig.json)
+
+    // TODO: Apply replacement and save file with new changes
+    apply_replacement(&line, "~/b");
+}
+
+/// Reads a file by path
 fn read_file(path: &PathBuf) {
     let display = path.display();
 
@@ -40,18 +57,27 @@ fn read_file(path: &PathBuf) {
         Ok(file) => BufReader::new(file),
     };
 
-    for (index, line) in buf_reader.lines().enumerate() {
-        info!("- FILE: {:?}", display);
-        info!("- LINE {}: {:?}", index, &line);
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"require\('./[a-zA-Z-_.]'\)").unwrap();
+    };
 
-        // TODO: Match path comparin first and replacing
+    for (index, line) in buf_reader.lines().enumerate() {
         match line {
             Err(e) => warn!("{:?}", e),
-            Ok(line) => info!("- LINE {} (UP): {:?}", index, &line),
+            Ok(line) => {
+                info!("- FILE: {:?}", display);
+                info!("- LINE {}: {:?}", index, &line);
+
+                if RE.is_match(&line) {
+                    info!("- PATH MATCH!");
+                    process_line(&line);
+                }
+            }
         }
     }
 }
 
+/// Scans a directory by glob pattern
 fn read_dir(pattern: &str) {
     for entry in glob(pattern).expect("Failed to read glob pattern") {
         match entry {
