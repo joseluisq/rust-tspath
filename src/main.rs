@@ -12,6 +12,7 @@ use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::io::Write;
 use std::path::PathBuf;
 
 /// Gets one process argument by key and it also supports a default value
@@ -37,18 +38,15 @@ fn get_argument(args: &[String], key: &str, defaults: &str) -> String {
     }
 }
 
-fn apply_replacement(line: &str, replacement: &str) {
-    info!("- APPLY REPLACED!");
+fn process_line(line: &str) -> String {
+    // TODO: Use real data from tsconfig.json
+    let from = "~/b";
+    let to = "./b";
+
+    line.replace(&*from, &*to)
 }
 
-fn process_line(line: &str) {
-    // TODO: Load compilerOptions.paths (tsconfig.json)
-
-    // TODO: Apply replacement and save file with new changes
-    apply_replacement(&line, "~/b");
-}
-
-/// Reads a file by path
+/// Reads a file line by line
 fn read_file(path: &PathBuf) {
     let display = path.display();
 
@@ -58,22 +56,54 @@ fn read_file(path: &PathBuf) {
     };
 
     lazy_static! {
-        static ref RE: Regex = Regex::new(r"require\('./[a-zA-Z-_.]'\)").unwrap();
+        // TODO:
+        //  - use a global variable for Regex format value
+        //  - fix regex format value
+        static ref RE: Regex = Regex::new(r"require\('[~/b]'\)").unwrap();
     };
 
-    for (index, line) in buf_reader.lines().enumerate() {
+    let mut new_data: String = String::from("");
+    let mut has_changes: bool = false;
+
+    for line in buf_reader.lines() {
         match line {
             Err(e) => warn!("{:?}", e),
             Ok(line) => {
-                info!("- FILE: {:?}", display);
-                info!("- LINE {}: {:?}", index, &line);
+                // info!("- FILE: {:?}", display);
+                // info!("- LINE {}: {:?}", index, &line);
 
                 if RE.is_match(&line) {
-                    info!("- PATH MATCH!");
-                    process_line(&line);
+                    info!("- FILE: {:?} - LINE REPLACED!", display);
+
+                    let new_line = process_line(&line);
+
+                    new_data.push_str(&new_line);
+                    has_changes = true;
+                } else {
+                    new_data.push_str(&line);
                 }
+
+                new_data.push_str("\n");
             }
         }
+    }
+
+    if has_changes && !new_data.is_empty() {
+        save_file(&path, new_data);
+    }
+}
+
+// Save a new file
+fn save_file(path: &PathBuf, new_data: String) {
+    let display = path.display();
+    let mut file = match File::create(&path) {
+        Err(why) => panic!("couldn't create {}: {}", display, why),
+        Ok(file) => file,
+    };
+
+    match file.write_all(new_data.as_bytes()) {
+        Err(why) => panic!("couldn't write to {}: {}", display, why),
+        Ok(_) => println!("successfully wrote to {}", display),
     }
 }
 
@@ -88,6 +118,8 @@ fn read_dir(pattern: &str) {
 }
 
 fn main() {
+    // TODO: Load compilerOptions.paths (tsconfig.json)
+
     simple_logger::init().unwrap();
 
     let args: Vec<String> = env::args().collect();
