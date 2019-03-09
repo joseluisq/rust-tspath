@@ -1,5 +1,5 @@
 [env]
-E_ARGS = "--source tmp/src/**/*.js --config tsconfig.json"
+E_ARGS = "--source tmp/src/**/*.js --config ./tmp/tsconfig.json"
 
 [tasks.watch]
 command = "cargo"

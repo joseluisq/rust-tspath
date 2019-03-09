@@ -1,6 +1,7 @@
 extern crate glob;
 #[macro_use]
 extern crate lazy_static;
+extern crate json;
 extern crate log;
 extern crate regex;
 extern crate simple_logger;
@@ -117,9 +118,27 @@ fn read_dir(pattern: &str) {
     }
 }
 
-fn main() {
-    // TODO: Load compilerOptions.paths (tsconfig.json)
+/// Reads a tsconfig.json file
+fn read_tsconfig_file(path: &str) -> Result<json::JsonValue, json::Error> {
+    let mut buf_reader = match File::open(&path) {
+        Err(e) => panic!("couldn't open {}: {}", path, e),
+        Ok(file) => BufReader::new(file),
+    };
 
+    let mut contents = String::new();
+    buf_reader
+        .read_to_string(&mut contents)
+        .expect("Unable to read the file");
+
+    let data = match json::parse(&contents) {
+        Err(e) => panic!("couldn't parse file {}: {}", path, e),
+        Ok(contents) => contents,
+    };
+
+    Ok(data)
+}
+
+fn main() {
     simple_logger::init().unwrap();
 
     let args: Vec<String> = env::args().collect();
@@ -127,10 +146,17 @@ fn main() {
     let source = get_argument(&args, "--source", "./");
     let config = get_argument(&args, "--config", "tsconfig.json");
 
-    warn!("SOURCE: {}", &source);
-    warn!("CONFIG: {}", &config);
-
+    info!("SOURCE: {}", &source);
+    info!("CONFIG: {}", &config);
     info!("--------");
+
+    let data = match read_tsconfig_file(&config) {
+        Err(e) => panic!("couldn't parse json data: {}", e),
+        Ok(v) => v,
+    };
+
+    // TODO: Checks required properties
+    info!("JSON: {:?}", data["compilerOptions"]);
 
     read_dir(&source);
 }

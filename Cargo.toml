@@ -9,6 +9,7 @@ simple_logger = "1.0.1"
 glob = "0.2"
 regex = "1"
 lazy_static = "1.2.0"
+json = "*"
 
 [profile.release]
 lto = true
