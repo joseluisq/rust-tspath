@@ -1,20 +1,20 @@
 extern crate glob;
-#[macro_use]
-extern crate lazy_static;
 extern crate json;
+extern crate lazy_static;
 extern crate log;
 extern crate regex;
 extern crate simple_logger;
 
 use glob::glob;
-use log::{info, warn};
+use log::info;
 use regex::Regex;
 use std::env;
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Gets one process argument by key and it also supports a default value
 fn get_argument(args: &[String], key: &str, defaults: &str) -> String {
@@ -39,16 +39,8 @@ fn get_argument(args: &[String], key: &str, defaults: &str) -> String {
     }
 }
 
-fn process_line(line: &str) -> String {
-    // TODO: Use real data from tsconfig.json
-    let from = "~/b";
-    let to = "./b";
-
-    line.replace(&*from, &*to)
-}
-
 /// Reads a file line by line
-fn read_file(path: &PathBuf) {
+fn read_file(path: &PathBuf, _ts_path: &std::path::Path, ts_paths: &json::JsonValue) {
     let display = path.display();
 
     let buf_reader = match File::open(&path) {
@@ -56,32 +48,55 @@ fn read_file(path: &PathBuf) {
         Ok(file) => BufReader::new(file),
     };
 
-    lazy_static! {
-        // TODO:
-        //  - use a global variable for Regex format value
-        //  - fix regex format value
-        static ref RE: Regex = Regex::new(r"require\('[~/b]'\)").unwrap();
-    };
+    // lazy_static! {
+    // TODO:
+    //  - use a global variable for Regex format value
+    //  - fix regex format value
+    // };
+
+    let mut tspaths_vec: Vec<(Regex, (String, String))> = Vec::new();
+
+    // TODO: verify Regex pattern
+    for tspath in ts_paths.entries() {
+        let from = tspath.0.replace("*", "");
+        let to = tspath.1.to_string().replace("*", "");
+
+        let pattern = &format!(r"{}{}{}", "require('[", from, "]')");
+
+        dbg!(pattern);
+
+        let regx = Regex::new(pattern).unwrap();
+
+        tspaths_vec.push((regx, (from, to)));
+    }
 
     let mut new_data: String = String::from("");
     let mut has_changes: bool = false;
 
     for line in buf_reader.lines() {
         match line {
-            Err(e) => warn!("{:?}", e),
+            Err(e) => panic!("{:?}", e),
             Ok(line) => {
                 // info!("- FILE: {:?}", display);
                 // info!("- LINE {}: {:?}", index, &line);
 
-                if RE.is_match(&line) {
-                    info!("- FILE: {:?} - LINE REPLACED!", display);
+                // TODO: checks Regex intering `tspaths_vec`
+                for p in &tspaths_vec {
+                    let regx = &p.0;
 
-                    let new_line = process_line(&line);
+                    if regx.is_match(&line) {
+                        info!("- FILE: {:?} - LINE REPLACED!", display);
+                        let jsonv = &p.1;
+                        let from = &jsonv.0;
+                        let to = &jsonv.1;
 
-                    new_data.push_str(&new_line);
-                    has_changes = true;
-                } else {
-                    new_data.push_str(&line);
+                        let new_line = line.replace(&*from, &*to);
+
+                        new_data.push_str(&new_line);
+                        has_changes = true;
+                    } else {
+                        new_data.push_str(&line);
+                    }
                 }
 
                 new_data.push_str("\n");
@@ -98,22 +113,22 @@ fn read_file(path: &PathBuf) {
 fn save_file(path: &PathBuf, new_data: String) {
     let display = path.display();
     let mut file = match File::create(&path) {
-        Err(why) => panic!("couldn't create {}: {}", display, why),
+        Err(e) => panic!("couldn't create {}: {}", display, e),
         Ok(file) => file,
     };
 
     match file.write_all(new_data.as_bytes()) {
-        Err(why) => panic!("couldn't write to {}: {}", display, why),
-        Ok(_) => println!("successfully wrote to {}", display),
+        Err(e) => panic!("couldn't write to {}: {}", display, e),
+        Ok(_) => info!("successfully wrote to {}", display),
     }
 }
 
 /// Scans a directory by glob pattern
-fn read_dir(pattern: &str) {
+fn read_dir(pattern: &str, ts_path: &std::path::Path, ts_paths: &json::JsonValue) {
     for entry in glob(pattern).expect("Failed to read glob pattern") {
         match entry {
-            Err(e) => warn!("{:?}", e),
-            Ok(path) => read_file(&path),
+            Err(e) => panic!("{:?}", e),
+            Ok(path) => read_file(&path, &ts_path, &ts_paths),
         }
     }
 }
@@ -131,7 +146,7 @@ fn read_tsconfig_file(path: &str) -> Result<json::JsonValue, json::Error> {
         .expect("Unable to read the file");
 
     let data = match json::parse(&contents) {
-        Err(e) => panic!("couldn't parse file {}: {}", path, e),
+        Err(e) => panic!("couldn't parse {}: {}", path, e),
         Ok(contents) => contents,
     };
 
@@ -155,8 +170,27 @@ fn main() {
         Ok(v) => v,
     };
 
-    // TODO: Checks required properties
-    info!("JSON: {:?}", data["compilerOptions"]);
+    let compiler_options = &data["compilerOptions"];
 
-    read_dir(&source);
+    if compiler_options.is_empty() || !compiler_options.is_object() {
+        panic!("`compilerOptions` property is not a valid object or empty")
+    }
+
+    let base_url = &compiler_options["baseUrl"];
+
+    if base_url.is_empty() || !base_url.is_string() {
+        panic!("`baseUrl` property is not defined or empty")
+    }
+
+    let paths = &compiler_options["paths"];
+
+    if paths.is_empty() || !paths.is_object() {
+        panic!("`paths` property is not a valid object or empty")
+    }
+
+    let os_base_url_str = &base_url.as_str();
+    let os_base_url_path = OsStr::new(os_base_url_str.unwrap());
+    let path = Path::new(os_base_url_path);
+
+    read_dir(&source, &path, &paths);
 }
