@@ -5,10 +5,6 @@ extern crate log;
 extern crate regex;
 extern crate simple_logger;
 
-use glob::glob;
-use log::info;
-use regex::Regex;
-use std::env;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
@@ -16,28 +12,14 @@ use std::io::BufReader;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-/// Gets one process argument by key and it also supports a default value
-fn get_argument(args: &[String], key: &str, defaults: &str) -> String {
-    let mut val = String::from("");
-    let mut check = false;
+use log::info;
+use regex::Regex;
 
-    for arg in args {
-        if check {
-            val.push_str(&arg);
-            break;
-        }
+mod args;
+mod scanfs;
 
-        if !check && arg == key {
-            check = true
-        }
-    }
-
-    if val == "" {
-        defaults.to_owned()
-    } else {
-        val
-    }
-}
+use crate::args::Args;
+use crate::scanfs::ScanDir;
 
 /// Reads a file line by line
 fn read_file(path: &PathBuf, _ts_path: &std::path::Path, ts_paths: &json::JsonValue) {
@@ -123,16 +105,6 @@ fn save_file(path: &PathBuf, new_data: String) {
     }
 }
 
-/// Scans a directory by glob pattern
-fn read_dir(pattern: &str, ts_path: &std::path::Path, ts_paths: &json::JsonValue) {
-    for entry in glob(pattern).expect("Failed to read glob pattern") {
-        match entry {
-            Err(e) => panic!("{:?}", e),
-            Ok(path) => read_file(&path, &ts_path, &ts_paths),
-        }
-    }
-}
-
 /// Reads a tsconfig.json file
 fn read_tsconfig_file(path: &str) -> Result<json::JsonValue, json::Error> {
     let mut buf_reader = match File::open(&path) {
@@ -156,10 +128,9 @@ fn read_tsconfig_file(path: &str) -> Result<json::JsonValue, json::Error> {
 fn main() {
     simple_logger::init().unwrap();
 
-    let args: Vec<String> = env::args().collect();
-
-    let source = get_argument(&args, "--source", "./");
-    let config = get_argument(&args, "--config", "tsconfig.json");
+    let args = Args::new();
+    let source = args.get("--source", "./");
+    let config = args.get("--config", "tsconfig.json");
 
     info!("SOURCE: {}", &source);
     info!("CONFIG: {}", &config);
@@ -182,15 +153,19 @@ fn main() {
         panic!("`baseUrl` property is not defined or empty")
     }
 
-    let paths = &compiler_options["paths"];
+    let ts_paths = &compiler_options["paths"];
 
-    if paths.is_empty() || !paths.is_object() {
+    if ts_paths.is_empty() || !ts_paths.is_object() {
         panic!("`paths` property is not a valid object or empty")
     }
 
     let os_base_url_str = &base_url.as_str();
     let os_base_url_path = OsStr::new(os_base_url_str.unwrap());
-    let path = Path::new(os_base_url_path);
+    let ts_base_path = Path::new(os_base_url_path);
 
-    read_dir(&source, &path, &paths);
+    let callback = |path: &PathBuf| read_file(&path, &ts_base_path, &ts_paths);
+
+    let scan_dir = ScanDir::new(&source);
+
+    scan_dir.scan(callback);
 }
