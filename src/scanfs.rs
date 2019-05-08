@@ -1,11 +1,14 @@
 use glob::glob;
 use std::path::PathBuf;
 
+/// Scans a fs directory
 pub struct ScanDir<'a> {
+    /// A glob string pattern
     pattern: &'a str,
 }
 
 impl<'a> ScanDir<'a> {
+    /// Creates an instance of ScanDir
     pub fn new(pattern: &str) -> ScanDir {
         ScanDir { pattern }
     }
