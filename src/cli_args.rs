@@ -1,16 +1,18 @@
 use std::env;
 
-pub struct Args {
+/// CLI Arguments Reader
+pub struct CLIArgs {
     args: Vec<String>,
 }
 
-impl Args {
-    pub fn new() -> Args {
+impl CLIArgs {
+    /// Creates an instance of Args
+    pub fn new() -> CLIArgs {
         let args_vec: Vec<String> = env::args().collect();
-        Args { args: args_vec }
+        CLIArgs { args: args_vec }
     }
 
-    /// Gets one process argument by key and it also supports a default value
+    /// Gets one CLI argument by key accepting an optional default value
     pub fn get(&self, key: &str, defaults: &str) -> String {
         let mut val = String::from("");
         let mut check = false;

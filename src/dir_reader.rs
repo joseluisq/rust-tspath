@@ -1,20 +1,20 @@
 use glob::glob;
 use std::path::PathBuf;
 
-/// Scans a fs directory
-pub struct ScanDir<'a> {
+/// Directory reader with glob pattern support
+pub struct DirReader<'a> {
     /// A glob string pattern
     pattern: &'a str,
 }
 
-impl<'a> ScanDir<'a> {
-    /// Creates an instance of ScanDir
-    pub fn new(pattern: &str) -> ScanDir {
-        ScanDir { pattern }
+impl<'a> DirReader<'a> {
+    /// Creates an instance of DirReader using a given glob pattern
+    pub fn new(pattern: &str) -> DirReader {
+        DirReader { pattern }
     }
 
-    /// Scans a directory by glob pattern
-    pub fn scan<F>(&self, fun: F)
+    /// Scans one directory using the a pre-defined glob pattern
+    pub fn read<F>(&self, fun: F)
     where
         F: Fn(&PathBuf) -> (),
     {
