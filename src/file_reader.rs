@@ -9,10 +9,34 @@ pub struct FileReader<'a> {
     path: &'a PathBuf,
 }
 
+type TSPathsVec = Vec<(Regex, (String, String))>;
+
 impl<'a> FileReader<'a> {
     /// Creates an instance of FileReader
     pub fn new(path: &PathBuf) -> FileReader {
         FileReader { path }
+    }
+
+    /// Creates a TS Paths vec
+    pub fn create_tspaths_vec(&self, ts_paths: &json::JsonValue) -> TSPathsVec {
+        let mut tspaths_vec: TSPathsVec = Vec::new();
+
+        // TODO: Split Regex functionality
+        // TODO: verify Regex pattern
+        for tspath in ts_paths.entries() {
+            let from = tspath.0.replace("*", "");
+            let to = tspath.1.to_string().replace("*", "");
+
+            let regex_pattern = &format!(r"{}{}{}", "require('[", from, "]')");
+
+            dbg!(regex_pattern);
+
+            let regx = Regex::new(regex_pattern).unwrap();
+
+            tspaths_vec.push((regx, (from, to)));
+        }
+
+        tspaths_vec
     }
 
     /// Reads a file line by line and return the data if it matches with the Regex
@@ -33,22 +57,7 @@ impl<'a> FileReader<'a> {
         //  - fix regex format value
         // };
 
-        // TODO: Split Regex functionality
-        let mut tspaths_vec: Vec<(Regex, (String, String))> = Vec::new();
-
-        // TODO: verify Regex pattern
-        for tspath in ts_paths.entries() {
-            let from = tspath.0.replace("*", "");
-            let to = tspath.1.to_string().replace("*", "");
-
-            let pattern = &format!(r"{}{}{}", "require('[", from, "]')");
-
-            dbg!(pattern);
-
-            let regx = Regex::new(pattern).unwrap();
-
-            tspaths_vec.push((regx, (from, to)));
-        }
+        let ts_paths_vec: TSPathsVec = self.create_tspaths_vec(ts_paths);
 
         let mut new_data: String = String::from("");
         let mut has_changes: bool = false;
@@ -61,7 +70,7 @@ impl<'a> FileReader<'a> {
                     // info!("- LINE {}: {:?}", index, &line);
 
                     // TODO: checks Regex `tspaths_vec`
-                    for p in &tspaths_vec {
+                    for p in &ts_paths_vec {
                         let regx = &p.0;
 
                         if regx.is_match(&line) {
