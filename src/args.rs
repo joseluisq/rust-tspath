@@ -7,7 +7,6 @@ pub struct Args {
 impl Args {
     pub fn new() -> Args {
         let args_vec: Vec<String> = env::args().collect();
-
         Args { args: args_vec }
     }
 

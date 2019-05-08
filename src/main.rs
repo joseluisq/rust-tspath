@@ -129,43 +129,40 @@ fn main() {
     simple_logger::init().unwrap();
 
     let args = Args::new();
-    let source = args.get("--source", "./");
-    let config = args.get("--config", "tsconfig.json");
+    let ts_source = args.get("--source", "./");
+    let ts_config = args.get("--config", "tsconfig.json");
 
-    info!("SOURCE: {}", &source);
-    info!("CONFIG: {}", &config);
+    info!("SOURCE: {}", &ts_source);
+    info!("CONFIG: {}", &ts_config);
     info!("--------");
 
-    let data = match read_tsconfig_file(&config) {
+    let tsconfig = match read_tsconfig_file(&ts_config) {
         Err(e) => panic!("couldn't parse json data: {}", e),
         Ok(v) => v,
     };
 
-    let compiler_options = &data["compilerOptions"];
+    let ts_compiler_options = &tsconfig["compilerOptions"];
 
-    if compiler_options.is_empty() || !compiler_options.is_object() {
+    if ts_compiler_options.is_empty() || !ts_compiler_options.is_object() {
         panic!("`compilerOptions` property is not a valid object or empty")
     }
 
-    let base_url = &compiler_options["baseUrl"];
+    let ts_base_url = &ts_compiler_options["baseUrl"];
 
-    if base_url.is_empty() || !base_url.is_string() {
+    if ts_base_url.is_empty() || !ts_base_url.is_string() {
         panic!("`baseUrl` property is not defined or empty")
     }
 
-    let ts_paths = &compiler_options["paths"];
+    let ts_paths = &ts_compiler_options["paths"];
 
     if ts_paths.is_empty() || !ts_paths.is_object() {
         panic!("`paths` property is not a valid object or empty")
     }
 
-    let os_base_url_str = &base_url.as_str();
+    let os_base_url_str = &ts_base_url.as_str();
     let os_base_url_path = OsStr::new(os_base_url_str.unwrap());
-    let ts_base_path = Path::new(os_base_url_path);
+    let os_ts_base_path = Path::new(os_base_url_path);
 
-    let callback = |path: &PathBuf| read_file(&path, &ts_base_path, &ts_paths);
-
-    let scan_dir = ScanDir::new(&source);
-
-    scan_dir.scan(callback);
+    let scan_dir = ScanDir::new(&ts_source);
+    scan_dir.scan(|path: &PathBuf| read_file(&path, &os_ts_base_path, &ts_paths));
 }
