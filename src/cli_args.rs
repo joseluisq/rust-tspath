@@ -1,5 +1,3 @@
-use std::env;
-
 /// CLI Arguments Reader
 pub struct CLIArgs {
     args: Vec<String>,
@@ -8,7 +6,7 @@ pub struct CLIArgs {
 impl CLIArgs {
     /// Creates an instance of Args
     pub fn new() -> CLIArgs {
-        let args_vec: Vec<String> = env::args().collect();
+        let args_vec: Vec<String> = std::env::args().collect();
         CLIArgs { args: args_vec }
     }
 

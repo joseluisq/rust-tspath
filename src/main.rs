@@ -7,40 +7,20 @@ extern crate simple_logger;
 
 use log::info;
 use std::ffi::OsStr;
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 mod cli_args;
 mod dir_reader;
 mod file_reader;
 mod file_writer;
+mod line_replacer;
+mod tsconfig;
+mod tspaths;
 
-use crate::cli_args::CLIArgs;
-use crate::dir_reader::DirReader;
+use cli_args::CLIArgs;
+use dir_reader::DirReader;
 use file_reader::FileReader;
 use file_writer::FileWriter;
-
-/// Reads a tsconfig.json file
-fn read_tsconfig_file(path: &str) -> Result<json::JsonValue, json::Error> {
-    let mut buf_reader = match File::open(&path) {
-        Err(e) => panic!("couldn't open {}: {}", path, e),
-        Ok(file) => BufReader::new(file),
-    };
-
-    let mut contents = String::new();
-    buf_reader
-        .read_to_string(&mut contents)
-        .expect("Unable to read the file");
-
-    let data = match json::parse(&contents) {
-        Err(e) => panic!("couldn't parse {}: {}", path, e),
-        Ok(contents) => contents,
-    };
-
-    Ok(data)
-}
 
 fn main() {
     simple_logger::init().unwrap();
@@ -53,7 +33,7 @@ fn main() {
     info!("CONFIG: {}", &ts_config);
     info!("--------");
 
-    let tsconfig = match read_tsconfig_file(&ts_config) {
+    let tsconfig = match tsconfig::read_tsconfig_file(&ts_config) {
         Err(e) => panic!("couldn't parse json data: {}", e),
         Ok(v) => v,
     };
