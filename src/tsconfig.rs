@@ -5,22 +5,33 @@ use std::io::BufReader;
 
 // TODO: Implement an struct instead of functions
 
-/// Reads a tsconfig.json file
-pub fn read_tsconfig_file(path: &str) -> Result<JsonValue, json::Error> {
-    let mut buf_reader = match File::open(&path) {
-        Err(e) => panic!("couldn't open {}: {}", path, e),
-        Ok(file) => BufReader::new(file),
-    };
+pub struct TSConfig<'a> {
+    path: &'a str,
+}
 
-    let mut contents = String::new();
-    buf_reader
-        .read_to_string(&mut contents)
-        .expect("Unable to read the file");
+impl<'a> TSConfig<'a> {
+    pub fn new(path: &str) -> TSConfig {
+        TSConfig { path }
+    }
 
-    let data = match json::parse(&contents) {
-        Err(e) => panic!("couldn't parse {}: {}", path, e),
-        Ok(contents) => contents,
-    };
+    /// Reads a tsconfig.json file
+    pub fn read(&self) -> Result<JsonValue, json::Error> {
+        let mut buf_reader = match File::open(self.path) {
+            Err(e) => panic!("couldn't open {}: {}", self.path, e),
+            Ok(file) => BufReader::new(file),
+        };
 
-    Ok(data)
+        let mut contents = String::new();
+
+        buf_reader
+            .read_to_string(&mut contents)
+            .expect("Unable to read the file");
+
+        let data = match json::parse(&contents) {
+            Err(e) => panic!("couldn't parse {}: {}", self.path, e),
+            Ok(contents) => contents,
+        };
+
+        Ok(data)
+    }
 }

@@ -21,35 +21,46 @@ use cli_args::CLIArgs;
 use dir_reader::DirReader;
 use file_reader::FileReader;
 use file_writer::FileWriter;
+use tsconfig::TSConfig;
 
 fn main() {
     simple_logger::init().unwrap();
 
     let args = CLIArgs::new();
-    let ts_source = args.get("--source", "./");
-    let ts_config = args.get("--config", "tsconfig.json");
+    let str_ts_source = args.get("--source", "./");
+    let str_ts_config = args.get("--config", "tsconfig.json");
 
-    info!("SOURCE: {}", &ts_source);
-    info!("CONFIG: {}", &ts_config);
+    info!("SOURCE: {}", &str_ts_source);
+    info!("CONFIG: {}", &str_ts_config);
     info!("--------");
 
-    let tsconfig = match tsconfig::read_tsconfig_file(&ts_config) {
+    process_tsconfig_file(&str_ts_source, &str_ts_config);
+}
+
+fn process_tsconfig_file(str_ts_source: &String, str_ts_config: &String) {
+    // process a tsconfig file
+    let tsconfig = TSConfig::new(&str_ts_config);
+
+    let json_tsconfig = match tsconfig.read() {
         Err(e) => panic!("couldn't parse json data: {}", e),
         Ok(v) => v,
     };
 
-    let ts_compiler_options = &tsconfig["compilerOptions"];
+    // tsconfig: compiler options
+    let ts_compiler_options = &json_tsconfig["compilerOptions"];
 
     if ts_compiler_options.is_empty() || !ts_compiler_options.is_object() {
         panic!("`compilerOptions` property is not a valid object or empty")
     }
 
+    // tsconfig: base url
     let ts_base_url = &ts_compiler_options["baseUrl"];
 
     if ts_base_url.is_empty() || !ts_base_url.is_string() {
         panic!("`baseUrl` property is not defined or empty")
     }
 
+    // tsconfig: ts paths
     let ts_paths = &ts_compiler_options["paths"];
 
     if ts_paths.is_empty() || !ts_paths.is_object() {
@@ -61,7 +72,9 @@ fn main() {
     let os_ts_base_path = Path::new(os_base_url_path);
 
     // It only called when there is new data available
-    let save_file = |path: &PathBuf, new_data: String| FileWriter::new(&path).save(new_data);
+    let save_file = |path: &PathBuf, new_data: String| {
+        FileWriter::new(&path).save(new_data);
+    };
 
     // Reads file by file
     let read_file = |path: &PathBuf| {
@@ -69,6 +82,5 @@ fn main() {
     };
 
     // Reads TS source directory
-    let dir_reader = DirReader::new(&ts_source);
-    dir_reader.read(read_file);
+    DirReader::new(&str_ts_source).read(read_file);
 }
