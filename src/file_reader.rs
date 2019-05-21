@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
-use crate::line_replacer::LineReplacer;
+use line_replacer::LineReplacer;
 use tspaths::TSPaths;
 
 /// Reads a file
@@ -18,9 +18,9 @@ impl<'a> FileReader<'a> {
     }
 
     /// Reads a file line by line and return the data if it matches with the Regex
-    pub fn read<F>(&self, _ts_path: &std::path::Path, ts_paths: &JsonValue, fun: F)
+    pub fn read<F>(&self, ts_paths: &JsonValue, mut fun: F)
     where
-        F: Fn(&PathBuf, String) -> (),
+        F: FnMut(&PathBuf, &String) -> (),
     {
         let display = &self.path.display();
 
@@ -31,17 +31,19 @@ impl<'a> FileReader<'a> {
 
         let tspaths_vec = TSPaths::new(ts_paths).as_vec();
 
-        let replaced_line = |new_data: String| {
-            fun(&self.path, new_data);
-        };
+        let mut new_lines = String::new();
 
         for line in buf_reader.lines() {
             match line {
                 Err(e) => panic!("{:?}", e),
                 Ok(line) => {
-                    LineReplacer::new(line, &tspaths_vec).replace(replaced_line);
+                    LineReplacer::new(line, &tspaths_vec).replace(|new_line: String| {
+                        new_lines.push_str(&new_line);
+                    });
                 }
             }
         }
+
+        fun(&self.path, &new_lines);
     }
 }

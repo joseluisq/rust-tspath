@@ -16,13 +16,11 @@ impl<'a> TSPaths<'a> {
     pub fn as_vec(&self) -> TSPathsVec {
         let mut tspaths_vec: TSPathsVec = Vec::new();
 
-        // TODO: Split Regex functionality
-        // TODO: verify Regex pattern
         for tspath in self.ts_paths.entries() {
             let from = tspath.0.replace("*", "");
-            let to = tspath.1.to_string().replace("*", "");
+            let to = tspath.1[0].to_string().replace("*", "");;
 
-            let regex_pattern = &format!(r"{}{}{}", "require('[", from, "]')");
+            let regex_pattern = &format!("{}{}{}", "require\\(\'+([", from, "])(.)+\'\\)");
 
             dbg!(regex_pattern);
 

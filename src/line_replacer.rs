@@ -10,27 +10,22 @@ impl<'a> LineReplacer<'a> {
         LineReplacer { line, ts_paths_vec }
     }
 
-    pub fn replace<F>(&self, fun: F)
+    pub fn replace<F>(&self, mut fun: F)
     where
-        F: Fn(String) -> (),
+        F: FnMut(String) -> (),
     {
-        // info!("- FILE: {:?}", display);
-        // info!("- LINE {}: {:?}", index, &line);
-
-        let mut new_data: String = String::from("");
+        let mut new_data: String = String::new();
         let mut has_changes: bool = false;
 
-        // TODO: checks Regex `tspaths_vec`
         for p in self.ts_paths_vec {
             let regx = &p.0;
 
             if regx.is_match(&self.line) {
-                // info!("- FILE: {:?} - LINE REPLACED!", display);
                 let jsonv = &p.1;
                 let from = &jsonv.0;
                 let to = &jsonv.1;
 
-                let new_line = self.line.replace(&*from, &*to);
+                let new_line = &self.line.replace(&*from, &*to);
 
                 new_data.push_str(&new_line);
                 has_changes = true;

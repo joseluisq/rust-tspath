@@ -6,8 +6,8 @@ extern crate regex;
 extern crate simple_logger;
 
 use log::info;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+//use std::ffi::OsStr;
+use std::path::PathBuf;
 
 mod cli_args;
 mod dir_reader;
@@ -34,12 +34,12 @@ fn main() {
     info!("CONFIG: {}", &str_ts_config);
     info!("--------");
 
-    process_tsconfig_file(&str_ts_source, &str_ts_config);
+    replace_ts_file_paths(&str_ts_source, &str_ts_config);
 }
 
-fn process_tsconfig_file(str_ts_source: &String, str_ts_config: &String) {
+fn replace_ts_file_paths(str_ts_source_path: &str, str_ts_config_path: &str) {
     // process a tsconfig file
-    let tsconfig = TSConfig::new(&str_ts_config);
+    let tsconfig = TSConfig::new(&str_ts_config_path);
 
     let json_tsconfig = match tsconfig.read() {
         Err(e) => panic!("couldn't parse json data: {}", e),
@@ -67,20 +67,21 @@ fn process_tsconfig_file(str_ts_source: &String, str_ts_config: &String) {
         panic!("`paths` property is not a valid object or empty")
     }
 
-    let os_base_url_str = &ts_base_url.as_str();
-    let os_base_url_path = OsStr::new(os_base_url_str.unwrap());
-    let os_ts_base_path = Path::new(os_base_url_path);
+    info!("TS PATH: {}", &ts_paths);
+
+    //    let os_base_url_str = &ts_base_url.as_str();
+    //    let os_base_url_path = OsStr::new(os_base_url_str.unwrap());
 
     // It only called when there is new data available
-    let save_file = |path: &PathBuf, new_data: String| {
-        FileWriter::new(&path).save(new_data);
+    let save_file = |path: &PathBuf, new_data: &String| {
+        FileWriter::new(&path).save(&new_data);
     };
 
     // Reads file by file
     let read_file = |path: &PathBuf| {
-        FileReader::new(&path).read(&os_ts_base_path, &ts_paths, save_file);
+        FileReader::new(&path).read(&ts_paths, save_file);
     };
 
     // Reads TS source directory
-    DirReader::new(&str_ts_source).read(read_file);
+    DirReader::new(&str_ts_source_path).read(read_file);
 }

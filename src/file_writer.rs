@@ -15,7 +15,7 @@ impl<'a> FileWriter<'a> {
     }
 
     /// Save a new file
-    pub fn save(&self, new_data: String) {
+    pub fn save(&self, new_data: &str) {
         let display = &self.path.display();
 
         let mut file = match File::create(&self.path) {
@@ -23,7 +23,7 @@ impl<'a> FileWriter<'a> {
             Ok(file) => file,
         };
 
-        match file.write_all(new_data.as_bytes()) {
+        match file.write_all(&new_data.as_bytes()) {
             Err(e) => panic!("couldn't write to {}: {}", display, e),
             Ok(_) => info!("successfully wrote to {}", display),
         }
